@@ -1,11 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { AppConfig } from './app.config';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'; // Import Swagger
+import { ConfigService } from '@nestjs/config';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
+  app.use(helmet());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -22,6 +26,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
-  await app.listen(AppConfig.port);
+  await app.listen(configService.get<number>('port', 3000));
 }
 bootstrap();

@@ -6,8 +6,11 @@ import {
   IsInt,
   IsEnum,
   IsOptional,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { TrackDTO } from './create-record.request.dto';
 import { RecordFormat, RecordCategory } from '../schemas/record.enum';
 
 export class UpdateRecordRequestDTO {
@@ -82,5 +85,16 @@ export class UpdateRecordRequestDTO {
     required: false,
   })
   @IsOptional()
+  @IsString()
   mbid?: string;
+
+  @ApiProperty({
+    description: 'Track listing for the record',
+    type: [TrackDTO],
+    required: false,
+  })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TrackDTO)
+  tracklist?: TrackDTO[];
 }

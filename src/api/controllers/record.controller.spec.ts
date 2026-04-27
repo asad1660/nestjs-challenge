@@ -1,35 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RecordController } from './record.controller';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Record } from '../schemas/record.schema';
 import { CreateRecordRequestDTO } from '../dtos/create-record.request.dto';
 import { RecordCategory, RecordFormat } from '../schemas/record.enum';
+import { RecordService } from '../services/record.service';
 
 describe('RecordController', () => {
   let recordController: RecordController;
-  let recordModel: Model<Record>;
+  let recordService: jest.Mocked<RecordService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RecordController],
       providers: [
         {
-          provide: getModelToken('Record'),
+          provide: RecordService,
           useValue: {
-            new: jest.fn().mockResolvedValue({}),
-            constructor: jest.fn().mockResolvedValue({}),
-            find: jest.fn(),
-            findById: jest.fn(),
-            save: jest.fn(),
             create: jest.fn(),
+            findMany: jest.fn(),
+            update: jest.fn(),
           },
         },
       ],
     }).compile();
 
     recordController = module.get<RecordController>(RecordController);
-    recordModel = module.get<Model<Record>>(getModelToken('Record'));
+    recordService = module.get(RecordService);
   });
 
   it('should create a new record', async () => {
@@ -49,32 +44,25 @@ describe('RecordController', () => {
       qty: 10,
     };
 
-    jest.spyOn(recordModel, 'create').mockResolvedValue(savedRecord as any);
+    recordService.create.mockResolvedValue(savedRecord as any);
 
     const result = await recordController.create(createRecordDto);
     expect(result).toEqual(savedRecord);
-    expect(recordModel.create).toHaveBeenCalledWith({
-      artist: 'Test',
-      album: 'Test Record',
-      price: 100,
-      qty: 10,
-      category: RecordCategory.ALTERNATIVE,
-      format: RecordFormat.VINYL,
-    });
+    expect(recordService.create).toHaveBeenCalledWith(createRecordDto);
   });
 
-  it('should return an array of records', async () => {
+  it('should return paginated records', async () => {
     const records = [
       { _id: '1', name: 'Record 1', price: 100, qty: 10 },
       { _id: '2', name: 'Record 2', price: 200, qty: 20 },
     ];
+    const response = { items: records, count: records.length };
 
-    jest.spyOn(recordModel, 'find').mockReturnValue({
-      exec: jest.fn().mockResolvedValue(records),
-    } as any);
+    recordService.findMany.mockResolvedValue(response as any);
 
-    const result = await recordController.findAll();
-    expect(result).toEqual(records);
-    expect(recordModel.find).toHaveBeenCalled();
+    const query = { limit: 20 };
+    const result = await recordController.findAll(query);
+    expect(result).toEqual(response);
+    expect(recordService.findMany).toHaveBeenCalledWith(query);
   });
 });

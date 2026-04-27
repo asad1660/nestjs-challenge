@@ -11,18 +11,23 @@ This is a **NestJS** application starter with MongoDB integration. If necessary,
 $ npm install
 ````
 
-### Docker for MongoDB Emulator
-To use the MongoDB Emulator, you can start it using Docker:
+### Docker for MongoDB and Redis
+To use the local MongoDB and Redis services, you can start them using Docker:
 ```
 npm run mongo:start
 ```
-This will start a MongoDB instance running on your local machine. You can customize the settings in the Docker setup by modifying the docker-compose-mongo.yml if necessary. In the current configuration, you will have a MongoDB container running, which is accessible at localhost:27017.
-This mongo url will be necessary on the .env file, with example as follows:
+This will start MongoDB and Redis on your local machine. You can customize the settings in the Docker setup by modifying the docker-compose-mongo.yml if necessary. In the current configuration, MongoDB is accessible at localhost:27017 and Redis is accessible at localhost:6379.
+These URLs are required in the .env file, with example as follows:
 
 ```
 MONGO_URL=mongodb://localhost:27017/records
+REDIS_URL=redis://localhost:6379
+PORT=3000
+MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
+MB_TIMEOUT_MS=5000
+RECORD_LIST_CACHE_TTL_MS=60000
 ```
-This will point your application to a local MongoDB instance.
+This will point your application to the local MongoDB instance and the required Redis cache.
 
 ### MongoDB Data Setup
 The data.json file contains example records to seed your database. The setup script will import the records from this file into MongoDB.
@@ -33,6 +38,14 @@ To set up the database with the example records:
 npm run setup:db
 ```
 This will prompt the user to cleanup (Y/N) existing collection before importing data.json
+
+The app now uses Mongoose `createdAt` / `updatedAt` timestamps only. If an existing dev database has older `created` / `lastModified` fields, they can be left unused or wiped with the setup prompt. The setup script also removes duplicate logical records by `(artist, album, format)` before syncing the unique index.
+
+To inspect the query plan for the indexed list path:
+
+```
+npm run records:explain
+```
 
 
 #### data.json Example
@@ -73,6 +86,24 @@ To build and run the app in production mode:
 ```
 npm run start:prod
 ```
+
+### API Notes
+
+`GET /records` returns a paginated response:
+
+```
+{
+  "items": [],
+  "count": 0,
+  "nextCursor": "opaque-cursor"
+}
+```
+
+Supported filters are `q`, `artist`, `album`, `format`, `category`, `limit`, and `cursor`. `limit` defaults to 20 and is capped at 100. Record writes invalidate the Redis-backed list cache. Updating a missing record now returns `404`.
+
+`POST /orders` accepts `recordId` and `quantity`; stock is decremented atomically so concurrent orders cannot oversell the last copy.
+
+Health checks are exposed at `GET /health` and `GET /readiness`.
 
 ### Tests
 #### Run Unit Tests

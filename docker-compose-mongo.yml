@@ -15,6 +15,16 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: redis-cli ping
+      interval: 2s
+      timeout: 3s
+      retries: 5
+
   mongo-init:
     image: mongo:latest
     restart: 'no'
